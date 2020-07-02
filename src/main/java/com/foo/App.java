@@ -1,6 +1,8 @@
 package com.foo;
 
 import com.foo.model.Event;
+import com.foo.util.LogConsumerInterceptor;
+import com.foo.util.LogProducerInterceptor;
 import com.foo.util.FooSerdes;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -23,6 +25,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
@@ -70,8 +73,10 @@ public class App {
         config.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.StringSerde.class);
         config.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, FooSerdes.EventSerde.class);
         config.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 1);
-        config.put(ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, 60 * 1000);
-        config.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 60 * 1000);
+        config.put(ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, 6 * 1000);
+        config.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 6 * 1000);
+        config.put(StreamsConfig.consumerPrefix(ConsumerConfig.INTERCEPTOR_CLASSES_CONFIG), List.of(LogConsumerInterceptor.class));
+        config.put(StreamsConfig.producerPrefix(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG), List.of(LogProducerInterceptor.class));
 
         Serde<String> stringSerde = Serdes.String();
         FooSerdes.EventSerde eventSerde = new FooSerdes.EventSerde();
@@ -89,7 +94,6 @@ public class App {
 
         toplogy.addSource(EARLIEST,
                 "source-sort-processor",
-                new UsePreviousTimeOnInvalidTimestamp(),
                 stringSerde.deserializer(),
                 eventSerde.deserializer(),
                 EVENTS_TOPIC)

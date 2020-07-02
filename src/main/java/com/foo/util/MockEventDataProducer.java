@@ -76,6 +76,7 @@ public class MockEventDataProducer {
                             e.getEventType().name(),
                             convertToJson(e));
                     producer.send(record, callback);
+                    LOG.info("Sent {}", eventType);
                     if(delayBetweenEvents!=null) {
                         try {
                             LOG.info("Sleeping after producing {}", eventType);
