@@ -48,7 +48,12 @@ public class SortProcessor extends AbstractProcessor<String, Event> {
                 keyValueStore.delete(next.key);
             }
         }
-        if(false) { // change it to true to test resilience
+        // uncomment to test resilience
+        // throwException();
+    }
+
+    private void throwException() {
+        if(true) {
             throw new IllegalStateException("Intentional");
         }
     }

@@ -4,11 +4,13 @@ import com.foo.model.Event;
 import com.foo.util.FooSerdes;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
+import org.apache.kafka.streams.processor.StateRestoreListener;
 import org.apache.kafka.streams.processor.UsePreviousTimeOnInvalidTimestamp;
 import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.KeyValueStore;
@@ -18,6 +20,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
@@ -70,11 +75,12 @@ public class App {
 
         Serde<String> stringSerde = Serdes.String();
         FooSerdes.EventSerde eventSerde = new FooSerdes.EventSerde();
-
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
         Topology toplogy = new Topology();
         String stateStoreName = "sort-state-store";
 
         KeyValueBytesStoreSupplier storeSupplier = Stores.inMemoryKeyValueStore(stateStoreName);
+
         // compact more often since you will be clearing state store quickly
         Map<String, String> logConfig = Map.of(MAX_COMPACTION_LAG_MS_CONFIG, "100");
 
@@ -94,17 +100,50 @@ public class App {
                 .addSink("sink-sort-processor",
                         SINK_TOPIC_NAME, stringSerde.serializer(), eventSerde.serializer(), SortProcessor.getName());
 
+        LOG.info("Topology for the app : {}", toplogy.describe());
         KafkaStreams streams = new KafkaStreams(toplogy, config);
 
-        ExecutorService executorService = Executors.newSingleThreadExecutor();
-        executorService.submit( () -> {
-            System.out.println("Starting Application now");
-            streams.start();
+        streams.setUncaughtExceptionHandler((t, e) -> {
+            LOG.error("Thread {} threw exception {}. App is getting shutdown now", t.getName(), e.getMessage(), e);
+            System.exit(1); // Exit with non-zero status for the shutdown-hook to get executed.
         });
 
-        Runtime.getRuntime().addShutdownHook(new Thread( () -> {
-            System.out.println("Shutting down Application  now");
+        streams.setGlobalStateRestoreListener(new StateRestoreListener() {
+            Map<String, Instant> stateStoreToStartTime = new HashMap<>(); // this map is overkill for an application having only one state store and
+            // that state store dealing with just a single partition. But still adding it for reference.
+
+            @Override
+            public void onRestoreStart(TopicPartition topicPartition, String storeName, long startingOffset, long endingOffset) {
+                stateStoreToStartTime.putIfAbsent(storeName, Instant.now());
+            }
+
+            @Override
+            public void onBatchRestored(TopicPartition topicPartition, String storeName, long batchEndOffset, long numRestored) {
+
+            }
+
+            @Override
+            public void onRestoreEnd(TopicPartition topicPartition, String storeName, long totalRestored) {
+                System.out.println(totalRestored);
+                Instant startTime = stateStoreToStartTime.get(storeName);
+                LOG.info("Took {} millis to restore the state store {}. Topic : {} Partition : {}",
+                        ChronoUnit.MILLIS.between(startTime, Instant.now()),
+                        storeName, topicPartition.topic(), topicPartition.partition());
+            }
+        });
+
+        executorService.submit(() -> {
+            LOG.info("Starting Application now");
+            streams.start();
+            streams.localThreadsMetadata().forEach(m ->
+                    LOG.info("StreamThread metadata : {}", m)
+            );
+        });
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            LOG.info("Shutting down Application  now");
             streams.close(Duration.ofSeconds(2));
+            executorService.shutdownNow();
         }));
     }
 }
