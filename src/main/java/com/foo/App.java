@@ -1,9 +1,9 @@
 package com.foo;
 
 import com.foo.model.Event;
+import com.foo.util.FooSerdes;
 import com.foo.util.LogConsumerInterceptor;
 import com.foo.util.LogProducerInterceptor;
-import com.foo.util.FooSerdes;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.TopicPartition;
@@ -13,7 +13,6 @@ import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.processor.StateRestoreListener;
-import org.apache.kafka.streams.processor.UsePreviousTimeOnInvalidTimestamp;
 import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
@@ -38,9 +37,11 @@ import static org.apache.kafka.streams.Topology.AutoOffsetReset.EARLIEST;
 
 public class App {
 
-    static Logger LOG = LoggerFactory.getLogger(App.class);
+    private static Logger LOG = LoggerFactory.getLogger(App.class);
+    public static final long bufferIntervalInSeconds = 2;
+    public static final String stateStoreName = "sort-state-store";
 
-    public static void main(String[] args) {
+    public static Properties getConfig() {
         /*
          * Increasing bufferIntervalInSeconds has adverse effect on
          *
@@ -62,7 +63,7 @@ public class App {
          *       accordingly.
          * </ul>
          */
-        long bufferIntervalInSeconds = 2;
+
         Properties config = new Properties();
         config.put(StreamsConfig.APPLICATION_ID_CONFIG, "sort-app");
         config.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
@@ -77,17 +78,20 @@ public class App {
         config.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 6 * 1000);
         config.put(StreamsConfig.consumerPrefix(ConsumerConfig.INTERCEPTOR_CLASSES_CONFIG), List.of(LogConsumerInterceptor.class));
         config.put(StreamsConfig.producerPrefix(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG), List.of(LogProducerInterceptor.class));
+        return config;
+    }
 
+    public static Topology topology() {
         Serde<String> stringSerde = Serdes.String();
         FooSerdes.EventSerde eventSerde = new FooSerdes.EventSerde();
-        ExecutorService executorService = Executors.newSingleThreadExecutor();
+
         Topology toplogy = new Topology();
-        String stateStoreName = "sort-state-store";
+
 
         KeyValueBytesStoreSupplier storeSupplier = Stores.inMemoryKeyValueStore(stateStoreName);
 
-        // compact more often since you will be clearing state store quickly
-        Map<String, String> logConfig = Map.of(MAX_COMPACTION_LAG_MS_CONFIG, "100");
+        // compact more often since you will be clearing state store quickly but not more than the buffer interval.
+        Map<String, String> logConfig = Map.of(MAX_COMPACTION_LAG_MS_CONFIG, "10000");
 
         StoreBuilder<KeyValueStore<String, Event>> storeBuilder = Stores.keyValueStoreBuilder(storeSupplier, stringSerde, eventSerde)
                 .withLoggingEnabled(logConfig);
@@ -105,7 +109,13 @@ public class App {
                         SINK_TOPIC_NAME, stringSerde.serializer(), eventSerde.serializer(), SortProcessor.getName());
 
         LOG.info("Topology for the app : {}", toplogy.describe());
-        KafkaStreams streams = new KafkaStreams(toplogy, config);
+        return toplogy;
+    }
+
+    public static void main(String[] args) {
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+        KafkaStreams streams = new KafkaStreams(topology(), getConfig());
 
         streams.setUncaughtExceptionHandler((t, e) -> {
             LOG.error("Thread {} threw exception {}. App is getting shutdown now", t.getName(), e.getMessage(), e);

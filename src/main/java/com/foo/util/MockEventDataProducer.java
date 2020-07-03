@@ -63,21 +63,21 @@ public class MockEventDataProducer {
         Runnable generateTask = () -> {
             init();
             int counter = 0;
-            while(counter < numberOfIterations && keepRunning) {
+            while (counter < numberOfIterations && keepRunning) {
                 Faker faker = new Faker();
                 List<EventType> types = Stream.of(EventType.values()).collect(Collectors.toList());
                 Collections.reverse(types);
                 for (EventType eventType : types) {
-                    if(eventType.equals(EventType.START) || eventType.equals(EventType.STOP)) {
+                    if (eventType.equals(EventType.START) || eventType.equals(EventType.STOP)) {
                         continue;
                     }
-                    Event e = Event.builder().eventType(eventType).payload(faker.chuckNorris().fact()).build();
+                    Event e = getRandomEvent(eventType, faker);
                     ProducerRecord<String, String> record = new ProducerRecord<>(EVENTS_TOPIC,
-                            e.getEventType().name(),
+                            null,
                             convertToJson(e));
                     producer.send(record, callback);
                     LOG.info("Sent {}", eventType);
-                    if(delayBetweenEvents!=null) {
+                    if (delayBetweenEvents != null) {
                         try {
                             LOG.info("Sleeping after producing {}", eventType);
                             Thread.sleep(delayBetweenEvents.toMillis());
@@ -91,5 +91,18 @@ public class MockEventDataProducer {
         };
         Future<?> submit = executorService.submit(generateTask);
         submit.get();
+    }
+
+    private static Event getRandomEvent(EventType eventType, Faker faker) {
+        return Event.builder().eventType(eventType)
+                .id(faker.idNumber().ssnValid())
+                .payload(faker.chuckNorris().fact()).build();
+    }
+
+    public static Event getRandomEvent(EventType eventType) {
+        Faker faker = new Faker();
+        return Event.builder().eventType(eventType)
+                .id(faker.idNumber().ssnValid())
+                .payload(faker.chuckNorris().fact()).build();
     }
 }

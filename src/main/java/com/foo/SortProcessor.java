@@ -35,15 +35,15 @@ public class SortProcessor extends AbstractProcessor<String, Event> {
 
     void punctuate(long timestamp) {
         LOG.info("Punctuator invoked...");
-        try(KeyValueIterator<String, Event> iterator = keyValueStore.all()) {
+        try (KeyValueIterator<String, Event> iterator = keyValueStore.all()) {
             while (iterator.hasNext()) {
                 KeyValue<String, Event> next = iterator.next();
-                if(next.value == null) {
+                if (next.value == null) {
                     continue;
                 }
                 LOG.info("Sending {}", next.key);
                 // sleep();
-                context().forward(next.key, next.value);
+                context().forward(null, next.value);
                 // iterator.remove(); - this does not work since the iterator returned is read only
                 keyValueStore.delete(next.key);
             }
@@ -53,7 +53,7 @@ public class SortProcessor extends AbstractProcessor<String, Event> {
     }
 
     private void throwException() {
-        if(true) {
+        if (true) {
             throw new IllegalStateException("Intentional");
         }
     }
@@ -71,8 +71,8 @@ public class SortProcessor extends AbstractProcessor<String, Event> {
     @Override
     public void process(String key, Event value) {
         Event event = Event.builder(value).payload(value.getPayload().toUpperCase()).build();
-        LOG.info("Updating " + keyValueStore.hashCode() + " and processor : " + this.hashCode() +  " with " + key);
-        keyValueStore.put(event.getEventType().name(), event);
+        LOG.info("Updating " + keyValueStore.hashCode() + " and processor : " + this.hashCode() + " with " + key);
+        keyValueStore.put(event.getEventType().name() + " " + event.getId(), event);
     }
 
     public static String getName() {

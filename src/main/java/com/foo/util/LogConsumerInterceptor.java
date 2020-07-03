@@ -33,6 +33,6 @@ public class LogConsumerInterceptor<K, V> implements ConsumerInterceptor<K, V> {
 
     @Override
     public void configure(Map<String, ?> configs) {
-        LOG.info("Consumer Config : {}",configs);
+        LOG.info("Consumer Config : {}", configs);
     }
 }
