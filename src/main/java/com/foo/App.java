@@ -46,7 +46,7 @@ public class App {
          * Increasing bufferIntervalInSeconds has adverse effect on
          *
          * <ul>
-         *   <li>Length of transaction - i.e. if you were to change bufferFlushIntervalInMillis from 10 ms
+         *   <li>Length of transaction - i.e. if you were to change bufferIntervalInSeconds from 10 ms
          *       to 1000 ms, events buffered for 1000 ms > Events buffered for 10 ms. Thus time taken to
          *       complete one transaction will increase. Hence {@link
          *       org.apache.kafka.clients.producer.ProducerConfig#TRANSACTION_TIMEOUT_CONFIG} should be
@@ -90,7 +90,7 @@ public class App {
 
         KeyValueBytesStoreSupplier storeSupplier = Stores.inMemoryKeyValueStore(stateStoreName);
 
-        // compact more often since you will be clearing state store quickly but not more than the buffer interval.
+        // compact more often since you will be clearing state store quickly but not lesser than the buffer interval.
         Map<String, String> logConfig = Map.of(MAX_COMPACTION_LAG_MS_CONFIG, "10000");
 
         StoreBuilder<KeyValueStore<String, Event>> storeBuilder = Stores.keyValueStoreBuilder(storeSupplier, stringSerde, eventSerde)
