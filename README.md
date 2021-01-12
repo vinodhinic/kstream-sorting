@@ -10,6 +10,15 @@ Follow-up to my answer at https://stackoverflow.com/a/62722506 in the module [ks
 * Buffer window cannot be set arbitrarily - transaction timeout and max poll interval should be set accordingly. More comments in the [code](kstream-sort-shorter-duration/src/main/java/com/foo/App.java) itself.
 * Also demonstrated the use of `TopologyTestDriver` to test Processors
 
+### Buffering events for longer duration
+
+The X for buffer interval above is limited by the transaction timeout. 
+What if you need to set a higher value to X? 
+In that case, the processor should take care of drawing a buffer boundary within the state store and be able to determine when to close the current buffer and flush them, and simultaneously open a new one.
+
+<more to come> 
+
+
 ## Deduplication 
 
 Depending on Kafka Topic's retention policy, you can either delete or compact the closed segments. 
@@ -29,10 +38,8 @@ Let's now talk when duplicates can happen :
 
 The first scenario is an application error - not in control of Kafka. The second can be avoided by configuring idempotent Kafka producer.
 
-The process of deduplication should happen exactly-once.
- 
-i.e. Consume from input-topic -> determine if the message is duplicate -> Produce the non-duplicate into output-topic 
-
+The process of deduplication should happen exactly-once. i.e.
+`Consume from input-topic -> determine if the message is duplicate -> Produce the non-duplicate into output-topic` 
 The entire thing should work in all-or-none mode. Check out the properties needed for consumer and producer for this at [DedupKafkaUtil](dedup/src/main/java/com/foo/dedup/DedupKafkaUtil.java)
 
 Is that it? Nope.
@@ -50,6 +57,7 @@ It is quite easy to implement if you also store the kafka message's offset in th
 You would need to take backup of this dedup-store constantly. So if the original store got corrupted, you have to re-instantiate from the backup - and there is a slight chance that this backup is not up-to-date. How do you rebuild the state then?
 Quite simple. You have a store between two persistent queues - so you can always check what is the offset consumed and the last message produced and rebuild the store!
  
-This is a cool recipe I tried out with Kafka. But quite frankly, I have never found an application to this recipe. Almost always it is easy to have an idempotent sink than to go through this pain. Also, eos means you are using Kafka transaction - and that's always going to reduce the throughput since a transaction coordinator is involved behind the scenes.     
+This is a cool recipe I tried out with Kafka. But quite frankly, I have never found an use case for this recipe. Almost always, it is easier to have an idempotent sink than to go through this pain. Also, eos means you are using Kafka transaction - 
+and that's always going to reduce the throughput since a transaction coordinator is involved behind the scenes.     
 
 
