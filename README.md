@@ -56,9 +56,10 @@ It is quite easy to implement if you also store the kafka message's offset in th
  
 You would need to take backup of this dedup-store constantly. So if the original store got corrupted, you have to re-instantiate from the backup - and there is a slight chance that this backup is not up-to-date. How do you rebuild the state then?
 Quite simple. You have a store between two persistent queues - so you can always check what is the offset consumed and the last message produced and rebuild the store!
- 
-This is a cool recipe I tried out with Kafka. But quite frankly, I have never found an use case for this recipe. Almost always, it is easier to have an idempotent sink than to go through this pain. Also, eos means you are using Kafka transaction - 
+
+Also, what I have here works for a topic with single partition. If your topics has multiple partitions (which is typical) then you would have to assign dedup-store 
+exclusively for a partition - if you are deduplicating by the kafka message key and the topics are partitioned such that the same key goes to same partition. 
+Depending on the partitioning strategy you have used in the topic, the implementation of deduplication would vary widely.
+
+To conclude, this is a cool recipe I tried out with Kafka. But quite frankly, I have never found an use case for this recipe. Almost always, it is easier to have an idempotent sink than to go through this pain. Also, eos means you are using Kafka transaction - 
 and that's always going to reduce the throughput since a transaction coordinator is involved behind the scenes.     
-
-
- 
