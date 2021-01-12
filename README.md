@@ -2,7 +2,7 @@
 
 ## Sorting events in Kstreams
 
-Follow-up to my answer at https://stackoverflow.com/a/62722506 in the module [kstream-sort-shorter-duration](kstream-sort-shorter-duration/) 
+Follow-up to my answer at https://stackoverflow.com/a/62722506 in the module [kstream-sort-shorter-duration](/kstream-sort-shorter-duration) 
 
 * Buffer events for X seconds.
 * After X seconds is elapsed, sort the events in buffer and send it downstream
@@ -16,7 +16,7 @@ The X for buffer interval above is limited by the transaction timeout.
 What if you need to set a higher value to X? 
 In that case, the processor should take care of drawing a buffer boundary within the state store and be able to determine when to close the current buffer and flush them, and simultaneously open a new one.
 
-<more to come> 
+More to come...
 
 
 ## Deduplication 
@@ -61,3 +61,4 @@ This is a cool recipe I tried out with Kafka. But quite frankly, I have never fo
 and that's always going to reduce the throughput since a transaction coordinator is involved behind the scenes.     
 
 
+ 
