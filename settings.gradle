@@ -1,2 +1,14 @@
 rootProject.name = 'kstream-sorting'
 
+include 'dedup', 'kstream-sort-shorter-duration'
+
+setBuildFileName(rootProject)
+
+def setBuildFileName(project) {
+    project.children.each { childProject ->
+        childProject.buildFileName = "${childProject.name}.gradle"
+        assert childProject.projectDir.isDirectory()
+        assert childProject.buildFile.isFile()
+        setBuildFileName(childProject)
+    }
+}

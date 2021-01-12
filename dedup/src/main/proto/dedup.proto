@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/wrappers.proto";
+
+option java_package = "com.foo.dedup";
+option java_outer_classname = "Dedup";
+
+package dedup;
+
+message DedupValue {
+    // timestamp is when dedup store registered a dedup key for the first time. This will come in handy to purge older events
+    google.protobuf.Timestamp timestamp = 1;
+    google.protobuf.UInt64Value offset_id = 2;
+}
