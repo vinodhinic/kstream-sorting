@@ -14,7 +14,8 @@ Follow-up to my answer at https://stackoverflow.com/a/62722506 in the module [ks
 
 The X for buffer interval above is limited by the transaction timeout. 
 What if you need to set a higher value to X? 
-In that case, the processor should take care of drawing a buffer boundary within the state store and be able to determine when to close the current buffer and flush them, and simultaneously open a new one.
+In that case, the processor should take care of drawing a buffer boundary within the state store and be able to determine when to close the current buffer and flush them,
+ and simultaneously open a new one.
 
 More to come...
 
